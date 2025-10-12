@@ -13,9 +13,9 @@ REM Determine repository root
 for /f "tokens=*" %%i in ('git rev-parse --show-toplevel') do set REPO_ROOT=%%i
 
 REM List of per-project bump scripts (run individually)
-set S1=%REPO_ROOT%\custom_nodes\ovum\tools\auto_bump_version_ovum.py
-set S2=%REPO_ROOT%\custom_nodes\ovum\tools\auto_bump_version_spotlight.py
-set S3=%REPO_ROOT%\custom_nodes\ovum\tools\auto_bump_version_cudnn_wrapper.py
+set S1=%REPO_ROOT%\tools\auto_bump_version_ovum.py
+set S2=%REPO_ROOT%\tools\auto_bump_version_spotlight.py
+set S3=%REPO_ROOT%\tools\auto_bump_version_cudnn_wrapper.py
 
 set CHANGED=
 
@@ -25,7 +25,7 @@ for %%S in ("%S1%" "%S2%" "%S3%") do (
       set LINE=%%l
       if "!LINE!"=="CHANGED=1" set CHANGED=1
       for /f "tokens=1,2 delims==" %%a in ("!LINE!") do (
-        if "%%a"=="FILE" set FILEPATH=%%b & git add "!FILEPATH!"
+        if "%%a"=="FILE" set "FILEPATH=%%b" & git add "!FILEPATH!"
       )
     )
   )

@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 # Single target: ovum-cudnn-wrapper
-PROJECT_FILE = Path("custom_nodes/ovum-cudnn-wrapper/pyproject.toml")
+PROJECT_FILE = Path("pyproject.toml")
 
 VERSION_RE = re.compile(r'^(version\s*=\s*[\"\'])(\d+)\.(\d+)\.(\d+)([\"\'])\s*$', re.IGNORECASE)
 
