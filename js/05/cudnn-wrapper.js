@@ -263,7 +263,7 @@ app.registerExtension({
             if (this._ov_cudnn_hover) {
                 ctx.save();
                 let msg;
-                let bg = color;
+                let bg = '#00A86B'; // because it goes white for nvidia and that's just unreadable
                 if (!AMD_LIKE) {
                     msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
                 } else {
