@@ -1,6 +1,6 @@
 import {app} from "../../../scripts/app.js";
 import {api} from "../../../scripts/api.js";
-import {chainCallback} from "../../../ovum-cudnn-wrapper/js/01/utility.js";
+import {chainCallback} from "../01/utility.js";
 
 // Debounced bulk query machinery for cudnn wrap status
 const BULK_QUERY_ROUTE = "/ovum-cudnn-wrapper/cudnn_wrap_query_bulk";
