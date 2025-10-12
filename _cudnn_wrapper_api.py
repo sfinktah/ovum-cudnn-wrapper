@@ -72,6 +72,10 @@ async def ovum_cudnn_wrap_init(request: web.Request):
         Flags can be specified as: re:i:pattern (letters among imsxauL), or using inline (?i) etc.
       - Lines wrapped in slashes like "/.../" are also treated as regex. Trailing flags are allowed: /pattern/imx
     Other non-empty, non-comment lines are treated as exact NODE_CLASS_MAPPINGS keys.
+
+    Exclusions:
+      - Any line prefixed with '-' denotes an exclusion and follows the same syntax as inclusions
+        (e.g., -VAEDecode, -re:^VAE, -/vae.*/i). Exclusions are applied after inclusions and take priority.
     """
     try:
         root_cfg = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..', 'classes_to_cudnn_wrap.txt'))
@@ -80,6 +84,8 @@ async def ovum_cudnn_wrap_init(request: web.Request):
         print(f"[CUDNNWrapper] reading config from {cfg_path}")
         exact_keys = []
         regex_patterns = []  # list of tuples (pattern_str_display, compiled_pattern)
+        exact_excludes = []
+        regex_excludes = []  # list of tuples (pattern_str_display, compiled_pattern)
 
         def _flags_from_letters(letters: str) -> int:
             flag_map = {
@@ -104,6 +110,12 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                 line = raw.strip()
                 if not line:
                     continue
+                # Handle exclusions prefixed with '-'
+                is_exclude = line.startswith('-')
+                if is_exclude:
+                    line = line[1:].strip()
+                    if not line:
+                        continue
                 pat_disp = None
                 if line.startswith('re:'):
                     rest = line[3:].strip()
@@ -125,13 +137,13 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                         inner = pat[1:-1]
                         pat_disp = pat_disp or f'/{inner}/'
                         try:
-                            regex_patterns.append((pat_disp, re.compile(inner, flags_val)))
+                            (regex_excludes if is_exclude else regex_patterns).append((pat_disp, re.compile(inner, flags_val)))
                         except re.error as e:
                             print(f"CUDNNWrapper: invalid regex {pat_disp}: {e}")
                     else:
                         pat_disp = pat_disp or f're:{pat}'
                         try:
-                            regex_patterns.append((pat_disp, re.compile(pat, flags_val)))
+                            (regex_excludes if is_exclude else regex_patterns).append((pat_disp, re.compile(pat, flags_val)))
                         except re.error as e:
                             print(f"CUDNNWrapper: invalid regex {pat_disp}: {e}")
                 elif line.startswith('/') and len(line) >= 2:
@@ -145,11 +157,14 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                     flags_val = _flags_from_letters(trailing)
                     pat_disp = f'/{pat}/{trailing}' if trailing else f'/{pat}/'
                     try:
-                        regex_patterns.append((pat_disp, re.compile(pat, flags_val)))
+                        (regex_excludes if is_exclude else regex_patterns).append((pat_disp, re.compile(pat, flags_val)))
                     except re.error as e:
                         print(f"CUDNNWrapper: invalid regex {pat_disp}: {e}")
                 else:
-                    exact_keys.append(line)
+                    if is_exclude:
+                        exact_excludes.append(line)
+                    else:
+                        exact_keys.append(line)
         # Build a unique processing list to avoid wrapping the same key multiple times
         unique_targets = []
         seen = set()
@@ -175,6 +190,28 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                     print(f"CUDNNWrapper: Error testing regex {disp} on '{key}': {type(e).__name__}")
             if not matched_any:
                 print(f"CUDNNWrapper: regex {disp} matched no classes")
+
+        # Build exclusion set (priority over inclusions)
+        excluded = set(exact_excludes)
+        for disp, pat in regex_excludes:
+            matched_any = False
+            for key in mapping_keys:
+                try:
+                    if pat.search(key):
+                        matched_any = True
+                        excluded.add(key)
+                except Exception:
+                    print(f"CUDNNWrapper: Error testing exclude regex {disp} on '{key}'")
+            if not matched_any:
+                print(f"CUDNNWrapper: exclude regex {disp} matched no classes")
+
+        if excluded:
+            # Filter unique_targets by exclusions
+            before = len(unique_targets)
+            unique_targets = [(k, o) for (k, o) in unique_targets if k not in excluded]
+            removed = before - len(unique_targets)
+            if removed:
+                print(f"CUDNNWrapper: excluded {removed} target(s) due to exclusions")
 
         # Process each key at most once
         for key, origin in unique_targets:
