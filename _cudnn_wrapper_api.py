@@ -14,7 +14,7 @@ from cudnn_wrapper import (
 )
 
 
-@PromptServer.instance.routes.post("/ovum/cudnn_wrap_request")
+@PromptServer.instance.routes.post("/ovum-cudnn-wrapper/cudnn_wrap_request")
 async def ovum_cudnn_wrap_request(request: web.Request):
     try:
         data = await request.post()
@@ -27,7 +27,7 @@ async def ovum_cudnn_wrap_request(request: web.Request):
         return web.json_response({"response": False})
 
 
-@PromptServer.instance.routes.post("/ovum/cudnn_wrap_query")
+@PromptServer.instance.routes.post("/ovum-cudnn-wrapper/cudnn_wrap_query")
 async def ovum_cudnn_wrap_query(request: web.Request):
     try:
         data = await request.post()
@@ -37,7 +37,7 @@ async def ovum_cudnn_wrap_query(request: web.Request):
         return web.json_response({"response": False})
 
 
-@PromptServer.instance.routes.post("/ovum/cudnn_wrap_query_bulk")
+@PromptServer.instance.routes.post("/ovum-cudnn-wrapper/cudnn_wrap_query_bulk")
 async def ovum_cudnn_wrap_query_bulk(request: web.Request):
     # Accepts JSON body: { "types": ["ClassA", "ClassB", ...] }
     try:
@@ -62,7 +62,7 @@ async def ovum_cudnn_wrap_query_bulk(request: web.Request):
         return web.json_response({"response": {}})
 
 
-@PromptServer.instance.routes.post("/ovum/cudnn_wrap_init")
+@PromptServer.instance.routes.post("/ovum-cudnn-wrapper/cudnn_wrap_init")
 async def ovum_cudnn_wrap_init(request: web.Request):
     """
     Auto-convert classes listed in classes_to_cudnn_wrap.txt.
@@ -204,7 +204,7 @@ async def ovum_cudnn_wrap_init(request: web.Request):
         print("CUDNNWrapper: problem reading classes_to_cudnn_wrap.txt")
     return web.json_response({"response": True})
 
-@PromptServer.instance.routes.get('/ovum/cudnn-status')
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn-status')
 async def status(d):
     try:
         # Detect AMD-like environment (AMD HIP build or ZLUDA) similar to cudnn_wrapper logic
@@ -285,7 +285,7 @@ def _node_info_for_key(key: str) -> dict:
     return info
 
 
-@PromptServer.instance.routes.get("/ovum/debug/node-mappings")
+@PromptServer.instance.routes.get("/ovum-cudnn-wrapper/debug/node-mappings")
 async def debug_node_mappings(request: web.Request):
     """
     Query params:
@@ -332,7 +332,7 @@ async def debug_node_mappings(request: web.Request):
         return web.json_response({"error": True, "message": str(e)})
 
 
-@PromptServer.instance.routes.get("/ovum/debug/node-details")
+@PromptServer.instance.routes.get("/ovum-cudnn-wrapper/debug/node-details")
 async def debug_node_details(request: web.Request):
     """
     Query params:
@@ -358,7 +358,7 @@ async def debug_node_details(request: web.Request):
         return web.json_response({"error": True, "message": str(e)})
 
 
-@PromptServer.instance.routes.get("/ovum/debug/config")
+@PromptServer.instance.routes.get("/ovum-cudnn-wrapper/debug/config")
 async def debug_config(request: web.Request):
     """
     Parses classes_to_cudnn_wrap.txt and previews how it would match current NODE_CLASS_MAPPINGS.

@@ -1,10 +1,10 @@
 import {app} from "../../../scripts/app.js";
 import {api} from "../../../scripts/api.js";
-import {chainCallback} from "../../../ovum/js/01/utility.js";
+import {chainCallback} from "../../../ovum-cudnn-wrapper/js/01/utility.js";
 
 // Debounced bulk query machinery for cudnn wrap status
-const BULK_QUERY_ROUTE = "/ovum/cudnn_wrap_query_bulk";
-const SINGLE_QUERY_ROUTE = "/ovum/cudnn_wrap_query";
+const BULK_QUERY_ROUTE = "/ovum-cudnn-wrapper/cudnn_wrap_query_bulk";
+const SINGLE_QUERY_ROUTE = "/ovum-cudnn-wrapper/cudnn_wrap_query";
 
 const wrapStatusCache = new Map(); // type -> boolean
 const pendingTypes = new Set(); // Set<string>
@@ -84,7 +84,7 @@ let STATUS_TIMER = null;
 
 async function fetch_status() {
     try {
-        const res = await api.fetchApi('/ovum/cudnn-status', { method: 'GET' });
+        const res = await api.fetchApi('/ovum-cudnn-wrapper/cudnn-status', { method: 'GET' });
         const json = await res.json();
         if (json && typeof json === 'object') {
             if (typeof json["amd_like"] === 'boolean') AMD_LIKE = json["amd_like"];
@@ -165,7 +165,7 @@ app.registerExtension({
                 options.push({
                     content: "Disable cuDNN (wrapper)",
                     callback: async () => {
-                        const data = await call_server(this.type, "/ovum/cudnn_wrap_request");
+                        const data = await call_server(this.type, "/ovum-cudnn-wrapper/cudnn_wrap_request");
                         if (data?.response) {
                             nodeType.prototype._is_cudnn_wrapped = true;
                             app.graph.nodes
@@ -293,7 +293,7 @@ app.registerExtension({
     async init() {
         // Initialize cudnn wrapper by applying any configured class conversions on the backend.
         try {
-            await call_server(null, "/ovum/cudnn_wrap_init");
+            await call_server(null, "/ovum-cudnn-wrapper/cudnn_wrap_init");
         } catch (e) {}
         // Fetch environment status and keep it fresh periodically
         try {
