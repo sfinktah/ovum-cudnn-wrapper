@@ -38,5 +38,5 @@ WanVideoImageToVideoEncode
 /wanvideo.*decode/i
 
 # But exclude tiled decoders explicitly (example):
--WanVideoImageToVideoEncode
 -/text/i
+# -WanVideoImageToVideoEncode
