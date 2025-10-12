@@ -1,0 +1,20 @@
+[project]
+name = "ovum-cudnn-wrapper"
+description = "Dynamically wrap VAE decoding nodes with cuDNN disabling flags when on AMD (more fast is more good)."
+version = "1.0.142"
+dependencies = [
+    "aiohttp",
+    "requests",
+]
+
+[project.license]
+file = "MIT"
+
+[project.urls]
+Repository = "https://github.com/sfinktah/ovum-cudnn-wrapper"
+
+[tool.comfy]
+PublisherId = "sfinktah"
+DisplayName = "ovum-cudnn-wrapper"
+Icon = "https://avatars.githubusercontent.com/u/4650770"
+includes = []
