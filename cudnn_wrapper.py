@@ -136,7 +136,7 @@ def create_cudnn_wrapped_node(class_to_wrap: Type,
     is wrapped to temporarily disable cudnn for AMD users during the call, then restore.
     """
     if getattr(class_to_wrap, _FLAG, False):
-        print(f"[CUDNNWrapper] {class_to_wrap.__name__} already wrapped")
+        # print(f"[CUDNNWrapper] {class_to_wrap.__name__} already wrapped")
         # already wrapped
         return None
 

@@ -38,5 +38,7 @@ WanVideoImageToVideoEncode
 /wanvideo.*decode/i
 
 # But exclude tiled decoders explicitly (example):
+# -KSampler
+-/batched/i
 -/text/i
-# -WanVideoImageToVideoEncode
+-/^cudnn_wrapped_/

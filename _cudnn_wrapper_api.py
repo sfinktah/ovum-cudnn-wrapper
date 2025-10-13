@@ -203,7 +203,8 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                 except Exception:
                     print(f"CUDNNWrapper: Error testing exclude regex {disp} on '{key}'")
             if not matched_any:
-                print(f"CUDNNWrapper: exclude regex {disp} matched no classes")
+                # print(f"CUDNNWrapper: exclude regex {disp} matched no classes")
+                pass
 
         if excluded:
             # Filter unique_targets by exclusions

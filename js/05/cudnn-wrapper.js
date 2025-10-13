@@ -92,7 +92,10 @@ async function fetch_status() {
         }
     } catch {}
 }
-
+// def is_amd():
+//     global cpu_state
+//     if cpu_state == CPUState.GPU:
+//         if torch.version.hip:
 function drawAmdLogo(ctx, x, y, size, color) {
     // Precise AMD corner logo rendered from the provided SVG path
     // Path from user-provided SVG:
@@ -137,6 +140,57 @@ function drawAmdLogo(ctx, x, y, size, color) {
     ctx.scale(s, s);
     ctx.translate(-minX, -minY);
     ctx.fill(drawAmdLogo._path);
+    ctx.restore();
+}
+
+function drawNvidiaLogo(ctx, x, y, size) {
+    // NVIDIA logo drawn from provided SVG path with white background on the left side band
+    // SVG viewBox: 0 0 271.7 179.7
+    const pathStr = 'M101.3 53.6V37.4c1.6-.1 3.2-.2 4.8-.2 44.4-1.4 73.5 38.2 73.5 38.2S148.2 119 114.5 119c-4.5 0-8.9-.7-13.1-2.1V67.7c17.3 2.1 20.8 9.7 31.1 27l23.1-19.4s-16.9-22.1-45.3-22.1c-3-.1-6 .1-9 .4m0-53.6v24.2l4.8-.3c61.7-2.1 102 50.6 102 50.6s-46.2 56.2-94.3 56.2c-4.2 0-8.3-.4-12.4-1.1v15c3.4.4 6.9.7 10.3.7 44.8 0 77.2-22.9 108.6-49.9 5.2 4.2 26.5 14.3 30.9 18.7-29.8 25-99.3 45.1-138.7 45.1-3.8 0-7.4-.2-11-.6v21.1h170.2V0H101.3zm0 116.9v12.8c-41.4-7.4-52.9-50.5-52.9-50.5s19.9-22 52.9-25.6v14h-.1c-17.3-2.1-30.9 14.1-30.9 14.1s7.7 27.3 31 35.2M27.8 77.4s24.5-36.2 73.6-40V24.2C47 28.6 0 74.6 0 74.6s26.6 77 101.3 84v-14c-54.8-6.8-73.5-67.2-73.5-67.2z';
+    const vw = 271.7, vh = 179.7;
+
+    // Scale so the vertical size matches AMD logo height exactly
+    const scale = size / vh; // fit by height
+    const dw = vw * scale;
+    const dh = size;
+    const dx = x + (size - dw) / 2; // horizontally center within square
+    const dy = y;
+
+    // Build Path2D if possible
+    try {
+        if (!drawNvidiaLogo._path) {
+            drawNvidiaLogo._path = new Path2D(pathStr);
+        }
+    } catch (e) {
+        drawNvidiaLogo._path = null;
+    }
+
+    // Background: white band limited to the logo's vertical extremities (now full height)
+    ctx.save();
+    // ctx.fillStyle = '#ffffff';
+    // ctx.fillRect(x, y, size, size);
+
+    // If Path2D is not supported, draw a simple fallback (green rectangle with diagonal notch)
+    if (!drawNvidiaLogo._path) {
+        ctx.fillStyle = '#76b900';
+        const pad = size * 0.12;
+        ctx.fillRect(x + pad, dy + pad, size - pad * 2, dh - pad * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x + size * 0.35, dy + dh * 0.65);
+        ctx.lineTo(x + size * 0.55, dy + dh * 0.45);
+        ctx.lineTo(x + size * 0.75, dy + dh * 0.65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        return;
+    }
+
+    // Draw the scaled logo centered within the square button
+    ctx.translate(dx, dy);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#76b900';
+    ctx.fill(drawNvidiaLogo._path);
     ctx.restore();
 }
 
@@ -256,7 +310,14 @@ app.registerExtension({
                 else color = '#3378FF'; // blue when disabled
             }
 
-            drawAmdLogo(ctx, x0, y0, size, color);
+            if (!AMD_LIKE) {
+                // NVIDIA GPU detected: draw NVIDIA logo with its native colors
+                drawNvidiaLogo(ctx, x0, y0, size);
+            } else {
+                // AMD detected: draw AMD logo with dynamic color
+                // drawNvidiaLogo(ctx, x0, y0, size);
+                drawAmdLogo(ctx, x0, y0, size, color);
+            }
             this._ov_cudnn_logo_rect = { x: x0, y: y0, w: size, h: size };
 
             // Tooltip when hovering
