@@ -49,7 +49,7 @@ def _is_amd_like() -> bool:
     vstr = _detect_gpu_vendor_str()
     vlow = vstr.lower()
     # mirror logic used by AmdNvidiaIfElseOvum
-    return ("amd " in vstr) or ("zluda" in vlow)
+    return ("amd" in vlow) or ("zluda" in vlow)
 
 
 def _print_cudnn_change(target_value: bool, prev_enabled: bool, prev_benchmark: bool):

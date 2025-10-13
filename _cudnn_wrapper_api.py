@@ -261,7 +261,7 @@ async def status(d):
                 pass
             import os
             vlow = vstr.lower()
-            if ("amd " in vstr) or ("zluda" in vlow) or os.environ.get("ZLUDA") or os.environ.get("ZLUDA_ROOT"):
+            if ("amd" in vlow) or ("zluda" in vlow) or os.environ.get("ZLUDA") or os.environ.get("ZLUDA_ROOT"):
                 amd_like = True
         except Exception:
             amd_like = False
