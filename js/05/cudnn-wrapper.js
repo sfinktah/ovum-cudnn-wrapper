@@ -217,7 +217,7 @@ app.registerExtension({
             getExtraMenuOptions?.apply(this, arguments);
             if (!this._is_cudnn_wrapped) {
                 options.push({
-                    content: "Disable cuDNN (wrapper)",
+                    content: "🥚 Disable cuDNN (wrapper)",
                     callback: async () => {
                         const data = await call_server(this.type, "/ovum-cudnn-wrapper/cudnn_wrap_request");
                         if (data?.response) {
