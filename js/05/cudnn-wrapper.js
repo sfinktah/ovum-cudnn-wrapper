@@ -211,7 +211,7 @@ function roundedRect(ctx, x, y, w, h, r) {
 app.registerExtension({
     name: "ovum.cudnn_wrapper",
 
-    async beforeRegisterNodeDef(nodeType, nodeData, appInstance) {
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
         const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
         nodeType.prototype.getExtraMenuOptions = function (_, options) {
             getExtraMenuOptions?.apply(this, arguments);
