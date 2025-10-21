@@ -59,7 +59,8 @@ def _print_cudnn_change(target_value: bool, prev_enabled: bool, prev_benchmark: 
     else:
         print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled still set to {target_value}")
 
-    if target_value != prev_benchmark:
+    # noinspection PySimplifyBooleanCheck
+    if False != prev_benchmark:
         print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.benchmark set to {target_value} (was {prev_benchmark})")
     else:
         print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.benchmark still set to {target_value}")
