@@ -81,6 +81,9 @@ function requestWrapStatus(type) {
 let AMD_LIKE = false;
 let CUDNN_ENABLED = true;
 let STATUS_TIMER = null;
+// Warning state when cuDNN failed to be disabled on AMD
+let CUDNN_DISABLE_WARNING = false;
+let CUDNN_DISABLE_WARNING_MSG = "";
 
 async function fetch_status() {
     try {
@@ -89,6 +92,11 @@ async function fetch_status() {
         if (json && typeof json === 'object') {
             if (typeof json["amd_like"] === 'boolean') AMD_LIKE = json["amd_like"];
             if (typeof json["torch.backends.cudnn.enabled"] === 'boolean') CUDNN_ENABLED = json["torch.backends.cudnn.enabled"];
+        }
+        // If we are on AMD and cuDNN is confirmed disabled, clear any warning state
+        if (AMD_LIKE && CUDNN_ENABLED === false) {
+            CUDNN_DISABLE_WARNING = false;
+            CUDNN_DISABLE_WARNING_MSG = '';
         }
     } catch {}
 }
@@ -211,6 +219,59 @@ function roundedRect(ctx, x, y, w, h, r) {
 app.registerExtension({
     name: "ovum.cudnn_wrapper",
 
+    setup() {
+        // Re-init on websocket reconnection
+        function onSocketOpen() {
+            try { call_server(null, "/ovum-cudnn-wrapper/cudnn_wrap_init"); } catch (e) {}
+            try { fetch_status(); } catch (e) {}
+            if (!STATUS_TIMER) {
+                STATUS_TIMER = setInterval(fetch_status, 60000);
+            }
+        }
+        // Clear status polling when socket disconnects/closes
+        function onSocketClose() {
+            if (STATUS_TIMER) {
+                clearInterval(STATUS_TIMER);
+                STATUS_TIMER = null;
+            }
+        }
+        // When a node starts executing, verify cuDNN disabled state for wrapped nodes
+        function onExecuting(e) {
+            const id = e?.detail;
+            const g = app?.graph;
+            let node = null;
+            try {
+                if (g?.getNodeById) node = g.getNodeById(id);
+                else if (g?._nodes_by_id) node = g._nodes_by_id[id];
+                else if (Array.isArray(g?._nodes)) node = g._nodes.find(n => n?.id === id);
+            } catch {}
+            if (node && node._is_cudnn_wrapped) {
+                setTimeout(async () => {
+                    try { await fetch_status(); } catch {}
+                    if (AMD_LIKE && CUDNN_ENABLED !== false) {
+                        CUDNN_DISABLE_WARNING = true;
+                        CUDNN_DISABLE_WARNING_MSG = 'Warning: cuDNN was unable to be disabled';
+                    } else {
+                        CUDNN_DISABLE_WARNING = false;
+                        CUDNN_DISABLE_WARNING_MSG = '';
+                    }
+                    try { app.graph?.canvas?.setDirty?.(true, true); } catch {}
+                }, 500);
+            } else {
+                // Reset warning when a non-wrapped node starts
+                CUDNN_DISABLE_WARNING = false;
+                CUDNN_DISABLE_WARNING_MSG = '';
+            }
+        }
+
+        // Register listeners
+        api.addEventListener('reconnected', onSocketOpen);
+        api.addEventListener('executing', onExecuting);
+        // Attempt to listen for disconnection via API event and raw socket close
+        try { api.addEventListener('disconnected', onSocketClose); } catch {}
+        try { api.socket?.addEventListener?.('close', onSocketClose); } catch {}
+    },
+
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
         nodeType.prototype.getExtraMenuOptions = function (_, options) {
@@ -306,7 +367,8 @@ app.registerExtension({
                 else color = this.mouseOver ? LiteGraph.NODE_SELECTED_TITLE_COLOR : (this.boxcolor || LiteGraph.NODE_DEFAULT_BOXCOLOR);
             } else {
                 // AMD detected
-                if (CUDNN_ENABLED) color = '#00A86B'; // AMD green
+                if (CUDNN_DISABLE_WARNING) color = '#A8003B'; // warning red if failed to disable
+                else if (CUDNN_ENABLED) color = '#00A86B'; // AMD green
                 else color = '#3378FF'; // blue when disabled
             }
 
@@ -324,9 +386,12 @@ app.registerExtension({
             if (this._ov_cudnn_hover) {
                 ctx.save();
                 let msg;
-                let bg = '#00A86B'; // because it goes white for nvidia and that's just unreadable
+                let bg = '#00A86B'; // default AMD green background for tooltip
                 if (!AMD_LIKE) {
                     msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
+                } else if (CUDNN_DISABLE_WARNING) {
+                    msg = CUDNN_DISABLE_WARNING_MSG || 'Warning: cuDNN was unable to be disabled';
+                    bg = '#A8003B'; // warning red background
                 } else {
                     msg = `AMD detected: cuDNN is currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'}`;
                 }
