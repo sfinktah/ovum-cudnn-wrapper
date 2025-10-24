@@ -52,18 +52,12 @@ def _is_amd_like() -> bool:
     return ("amd " in vstr) or ("zluda" in vlow)
 
 
-def _print_cudnn_change(target_value: bool, prev_enabled: bool, prev_benchmark: bool):
-    # Match CUDNNToggleOvum console output exactly
+def _print_cudnn_change(target_value: bool, prev_enabled: bool):
+    # Match CUDNNToggleOvum console output for 'enabled' flag
     if target_value != prev_enabled:
         print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled set to {target_value} (was {prev_enabled})")
     else:
         print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled still set to {target_value}")
-
-    # noinspection PySimplifyBooleanCheck
-    if False != prev_benchmark:
-        print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.benchmark set to {target_value} (was {prev_benchmark})")
-    else:
-        print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.benchmark still set to {target_value}")
 
 
 def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
@@ -71,37 +65,29 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
         if not _is_amd_like():
             try:
                 prev_enabled = torch.backends.cudnn.enabled
-                prev_benchmark = torch.backends.cudnn.benchmark
             except Exception:
                 prev_enabled = False
-                prev_benchmark = False
             print(
                 f"[OVUM_CDDN_TOGGLE] AMD GPU not detected; cudnn settings unchanged "
-                f"(enabled={prev_enabled}, benchmark={prev_benchmark})"
+                f"(enabled={prev_enabled})"
             )
             return callable_fn(node, *args, **kwargs)
 
         # Save current state
         prev_enabled = torch.backends.cudnn.enabled
-        prev_benchmark = torch.backends.cudnn.benchmark
 
         # Disable while running
         torch.backends.cudnn.enabled = False
-        torch.backends.cudnn.benchmark = False
-        _print_cudnn_change(False, prev_enabled, prev_benchmark)
+        _print_cudnn_change(False, prev_enabled)
 
         try:
             return callable_fn(node, *args, **kwargs)
-            # original = callable_fn(node, *args, **kwargs)
-            # return _shape_result(original)
         finally:
             # Restore
             cur_enabled = torch.backends.cudnn.enabled
-            cur_benchmark = torch.backends.cudnn.benchmark
             torch.backends.cudnn.enabled = prev_enabled
-            torch.backends.cudnn.benchmark = prev_benchmark
             # Print messages reflecting the change back to original
-            _print_cudnn_change(prev_enabled, cur_enabled, cur_benchmark)
+            _print_cudnn_change(prev_enabled, cur_enabled)
 
     return wrapped
 
