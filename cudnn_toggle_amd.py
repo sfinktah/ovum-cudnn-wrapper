@@ -57,7 +57,7 @@ class CUDNNToggleAMD:
         if not _is_amd_like():
             # Do not modify cuDNN on non-AMD systems
             print(
-                f"[OVUM_CDDN_TOGGLE] AMD GPU not detected; torch.backends.cudnn.enabled still set to {prev_cudnn}"
+                f"[OVUM_CUDDN_TOGGLE] AMD GPU not detected; torch.backends.cudnn.enabled still set to {prev_cudnn}"
             )
             return (any_input, prev_cudnn)
 
@@ -65,9 +65,9 @@ class CUDNNToggleAMD:
         torch.backends.cudnn.enabled = enable_cudnn
 
         if enable_cudnn != prev_cudnn:
-            print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled set to {enable_cudnn} (was {prev_cudnn})")
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled set to {enable_cudnn} (was {prev_cudnn})")
         else:
-            print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled still set to {enable_cudnn}")
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled still set to {enable_cudnn}")
 
         return (any_input, prev_cudnn)
 

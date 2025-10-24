@@ -250,7 +250,7 @@ app.registerExtension({
                     try { await fetch_status(); } catch {}
                     if (AMD_LIKE && CUDNN_ENABLED !== false) {
                         CUDNN_DISABLE_WARNING = true;
-                        CUDNN_DISABLE_WARNING_MSG = 'Warning: cuDNN was unable to be disabled';
+                        CUDNN_DISABLE_WARNING_MSG = 'Warning: cuDNN was unable to be disabled, restarting ComfyUI may fix this';
                     } else {
                         CUDNN_DISABLE_WARNING = false;
                         CUDNN_DISABLE_WARNING_MSG = '';
@@ -363,11 +363,12 @@ app.registerExtension({
             // Determine color
             let color = null;
             if (!AMD_LIKE) {
-                if (this._ov_cudnn_running) color = '#a84444';
+                // This should never happen, so not going to bother with a tooltip for it
+                if (this._ov_cudnn_running) color = '#a88444';
                 else color = this.mouseOver ? LiteGraph.NODE_SELECTED_TITLE_COLOR : (this.boxcolor || LiteGraph.NODE_DEFAULT_BOXCOLOR);
             } else {
                 // AMD detected
-                if (CUDNN_DISABLE_WARNING) color = '#A8003B'; // warning red if failed to disable
+                if (CUDNN_DISABLE_WARNING) color = '#A83B3B'; // warning red if failed to disable
                 else if (CUDNN_ENABLED) color = '#00A86B'; // AMD green
                 else color = '#3378FF'; // blue when disabled
             }
@@ -384,34 +385,36 @@ app.registerExtension({
 
             // Tooltip when hovering
             if (this._ov_cudnn_hover) {
-                ctx.save();
-                let msg;
-                let bg = '#00A86B'; // default AMD green background for tooltip
-                if (!AMD_LIKE) {
-                    msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
-                } else if (CUDNN_DISABLE_WARNING) {
-                    msg = CUDNN_DISABLE_WARNING_MSG || 'Warning: cuDNN was unable to be disabled';
-                    bg = '#A8003B'; // warning red background
-                } else {
-                    msg = `AMD detected: cuDNN is currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'}`;
-                }
-                const padding = 6;
-                ctx.font = (LiteGraph.NODE_TEXT_SIZE * 0.7) + 'px Arial';
-                const metrics = ctx.measureText(msg);
-                const tw = Math.ceil(metrics.width) + padding * 2;
-                const th = LiteGraph.NODE_TEXT_SIZE * 0.7 + padding * 1.2;
-                const rx = cx - tw / 2;
-                const ry = -titleHeight - th - 4;
-                ctx.globalAlpha = 0.9;
-                ctx.fillStyle = bg;
-                roundedRect(ctx, rx, ry, tw, th, 6);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-                ctx.fillStyle = '#ffffff';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(msg, cx, ry + th / 2);
-                ctx.restore();
+                fetch_status().then(function() {
+                    ctx.save();
+                    let msg;
+                    let bg = '#00A86B'; // default AMD green background for tooltip
+                    if (!AMD_LIKE) {
+                        msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
+                    } else if (CUDNN_DISABLE_WARNING) {
+                        msg = CUDNN_DISABLE_WARNING_MSG || 'Warning: cuDNN was unable to be disabled';
+                        bg = '#A83B3B'; // warning red background
+                    } else {
+                        msg = `AMD detected: cuDNN is currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'}`;
+                    }
+                    const padding = 6;
+                    ctx.font = (LiteGraph.NODE_TEXT_SIZE * 0.7) + 'px Arial';
+                    const metrics = ctx.measureText(msg);
+                    const tw = Math.ceil(metrics.width) + padding * 2;
+                    const th = LiteGraph.NODE_TEXT_SIZE * 0.7 + padding * 1.2;
+                    const rx = cx - tw / 2;
+                    const ry = -titleHeight - th - 4;
+                    ctx.globalAlpha = 0.9;
+                    ctx.fillStyle = bg;
+                    roundedRect(ctx, rx, ry, tw, th, 6);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(msg, cx, ry + th / 2);
+                    ctx.restore();
+                })
             }
         });
     },

@@ -55,9 +55,9 @@ def _is_amd_like() -> bool:
 def _print_cudnn_change(target_value: bool, prev_enabled: bool):
     # Match CUDNNToggleOvum console output for 'enabled' flag
     if target_value != prev_enabled:
-        print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled set to {target_value} (was {prev_enabled})")
+        print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled set to {target_value} (was {prev_enabled})")
     else:
-        print(f"[OVUM_CDDN_TOGGLE] torch.backends.cudnn.enabled still set to {target_value}")
+        print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled still set to {target_value}")
 
 
 def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
@@ -68,7 +68,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
             except Exception:
                 prev_enabled = False
             print(
-                f"[OVUM_CDDN_TOGGLE] AMD GPU not detected; cudnn settings unchanged "
+                f"[OVUM_CUDDN_TOGGLE] AMD GPU not detected; cudnn settings unchanged "
                 f"(enabled={prev_enabled})"
             )
             return callable_fn(node, *args, **kwargs)
