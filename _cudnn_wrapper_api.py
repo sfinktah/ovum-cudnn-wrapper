@@ -215,14 +215,21 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                 print(f"CUDNNWrapper: excluded {removed} target(s) due to exclusions")
 
         # Process each key at most once
+        exact_wrapped_nodes = []
+        regex_wrapped_nodes = {}
         for key, origin in unique_targets:
             try:
                 wrapped = bool(convert_to_cudnn_wrapped_inplace(key))
                 if wrapped:
+                    # Accumulate names instead of per-node prints
                     if origin is None:
-                        print(f"CUDNNWrapper: Wrapped '{key}'")
+                        exact_wrapped_nodes.append(key)
                     else:
-                        print(f"CUDNNWrapper: Wrapped via regex {origin} -> '{key}'")
+                        lst = regex_wrapped_nodes.get(origin)
+                        if lst is None:
+                            lst = []
+                            regex_wrapped_nodes[origin] = lst
+                        lst.append(key)
                 elif not is_cudnn_wrapped(key):
                     if origin is None:
                         print(f"CUDNNWrapper: Failed wrapping '{key}'")
@@ -238,6 +245,14 @@ async def ovum_cudnn_wrap_init(request: web.Request):
                     print(f"CUDNNWrapper: Failed to wrap '{key}' because {type(e).__name__}")
                 else:
                     print(f"CUDNNWrapper: Failed regex-wrap '{key}' for {origin} because {type(e).__name__}")
+
+        # Summarize wrapped results: one line for all exact string matches, and one per unique regex
+        if exact_wrapped_nodes:
+            names = ", ".join(exact_wrapped_nodes)
+            print(f"CUDNNWrapper: Wrapped {len(exact_wrapped_nodes)} node(s) by exact string match: {names}")
+        for origin, names_list in regex_wrapped_nodes.items():
+            names = ", ".join(names_list)
+            print(f"CUDNNWrapper: Wrapped {len(names_list)} node(s) via regex {origin}: {names}")
     except Exception:
         print("CUDNNWrapper: problem reading classes_to_cudnn_wrap.txt")
     return web.json_response({"response": True})
