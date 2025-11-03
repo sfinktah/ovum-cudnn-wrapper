@@ -29,13 +29,6 @@ def _detect_gpu_vendor_str() -> str:
                 s = torch.cuda.get_device_name(0)
         except Exception:
             pass
-        # Add hints from version info (HIP indicates AMD/PyTorch ROCm builds)
-        try:
-            hip = getattr(getattr(torch, "version", object()), "hip", None)
-            if hip:
-                s = (s + " AMD ").strip()
-        except Exception:
-            pass
         # ZLUDA env hint
         import os
         if os.environ.get("ZLUDA", "") or os.environ.get("ZLUDA_ROOT", ""):
@@ -44,13 +37,16 @@ def _detect_gpu_vendor_str() -> str:
     except Exception:
         return ""
 
+def is_hip():
+    if torch.version.hip:
+        return True
+    return False
 
 def _is_amd_like() -> bool:
     vstr = _detect_gpu_vendor_str()
     vlow = vstr.lower()
     # mirror logic used by AmdNvidiaIfElseOvum
-    return ("amd " in vstr) or ("zluda" in vlow)
-
+    return any(x in vlow for x in ("radeon", "amd ", "zluda")) or is_hip
 
 def _print_cudnn_change(target_value: bool, prev_enabled: bool):
     # Match CUDNNToggleOvum console output for 'enabled' flag
