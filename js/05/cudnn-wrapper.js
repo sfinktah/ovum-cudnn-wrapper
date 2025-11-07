@@ -84,6 +84,26 @@ let STATUS_TIMER = null;
 // Warning state when cuDNN failed to be disabled on AMD
 let CUDNN_DISABLE_WARNING = false;
 let CUDNN_DISABLE_WARNING_MSG = "";
+// Throttle hover-triggered status fetches to 1 per second
+let _hoverStatusLastAt = 0;
+let _hoverStatusInFlight = false;
+function fetch_status_hover_throttled() {
+    const now = Date.now();
+    if (_hoverStatusInFlight) return;
+    if (now - _hoverStatusLastAt < 1000) return;
+    _hoverStatusLastAt = now;
+    _hoverStatusInFlight = true;
+    try {
+        const p = fetch_status();
+        if (p && typeof p.finally === 'function') {
+            p.finally(() => { _hoverStatusInFlight = false; });
+        } else {
+            _hoverStatusInFlight = false;
+        }
+    } catch {
+        _hoverStatusInFlight = false;
+    }
+}
 
 async function fetch_status() {
     try {
@@ -336,6 +356,7 @@ app.registerExtension({
             }
             if (hovered !== this._ov_cudnn_hover) {
                 this._ov_cudnn_hover = hovered;
+                console.log(`axvch onMouseMove hovered ${hovered}`);
                 app.graph?.canvas?.setDirty?.(true, true);
             }
         });
@@ -364,6 +385,7 @@ app.registerExtension({
             let color = null;
             if (!AMD_LIKE) {
                 // This should never happen, so not going to bother with a tooltip for it
+                console.log('[ovum-cudnn-wrapper] this point should never be reached')
                 if (this._ov_cudnn_running) color = '#a88444';
                 else color = this.mouseOver ? LiteGraph.NODE_SELECTED_TITLE_COLOR : (this.boxcolor || LiteGraph.NODE_DEFAULT_BOXCOLOR);
             } else {
@@ -383,38 +405,44 @@ app.registerExtension({
             }
             this._ov_cudnn_logo_rect = { x: x0, y: y0, w: size, h: size };
 
-            // Tooltip when hovering
-            if (this._ov_cudnn_hover) {
-                fetch_status().then(function() {
-                    ctx.save();
-                    let msg;
-                    let bg = '#00A86B'; // default AMD green background for tooltip
-                    if (!AMD_LIKE) {
-                        msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
-                    } else if (CUDNN_DISABLE_WARNING) {
-                        msg = CUDNN_DISABLE_WARNING_MSG || 'Warning: cuDNN was unable to be disabled';
-                        bg = '#A83B3B'; // warning red background
-                    } else {
-                        msg = `AMD detected: cuDNN is currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'}`;
-                    }
-                    const padding = 6;
-                    ctx.font = (LiteGraph.NODE_TEXT_SIZE * 0.7) + 'px Arial';
-                    const metrics = ctx.measureText(msg);
-                    const tw = Math.ceil(metrics.width) + padding * 2;
-                    const th = LiteGraph.NODE_TEXT_SIZE * 0.7 + padding * 1.2;
-                    const rx = cx - tw / 2;
-                    const ry = -titleHeight - th - 4;
-                    ctx.globalAlpha = 0.9;
-                    ctx.fillStyle = bg;
-                    roundedRect(ctx, rx, ry, tw, th, 6);
-                    ctx.fill();
-                    ctx.globalAlpha = 1;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(msg, cx, ry + th / 2);
-                    ctx.restore();
-                })
+            // Reset hover flag defensively if mouse is no longer over the node (can miss a move event when exiting)
+            if (this._ov_cudnn_hover && !this.mouseOver) {
+                this._ov_cudnn_hover = false;
+            }
+
+            // Tooltip when hovering (and still over the node)
+            if (this._ov_cudnn_hover && this.mouseOver) {
+                // Draw synchronously using the latest cached status values.
+                // Do NOT perform async fetch/draw here; canvas is immediate-mode and the frame will be cleared by the engine.
+                try { fetch_status_hover_throttled(); } catch {}
+                ctx.save();
+                let msg;
+                let bg = '#00A86B'; // default AMD green background for tooltip
+                if (!AMD_LIKE) {
+                    msg = `AMD not detected: cuDNN will not be modified (currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'})`;
+                } else if (CUDNN_DISABLE_WARNING) {
+                    msg = CUDNN_DISABLE_WARNING_MSG || 'Warning: cuDNN was unable to be disabled';
+                    bg = '#A83B3B'; // warning red background
+                } else {
+                    msg = `AMD detected: cuDNN is currently ${CUDNN_ENABLED ? 'enabled' : 'disabled'}`;
+                }
+                const padding = 6;
+                ctx.font = (LiteGraph.NODE_TEXT_SIZE * 0.7) + 'px Arial';
+                const metrics = ctx.measureText(msg);
+                const tw = Math.ceil(metrics.width) + padding * 2;
+                const th = LiteGraph.NODE_TEXT_SIZE * 0.7 + padding * 1.2;
+                const rx = cx - tw / 2;
+                const ry = -titleHeight - th - 4;
+                ctx.globalAlpha = 0.9;
+                ctx.fillStyle = bg;
+                roundedRect(ctx, rx, ry, tw, th, 6);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(msg, cx, ry + th / 2);
+                ctx.restore();
             }
         });
     },
