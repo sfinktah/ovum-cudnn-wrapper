@@ -198,22 +198,6 @@ function drawNvidiaLogo(ctx, x, y, size) {
     // ctx.fillStyle = '#ffffff';
     // ctx.fillRect(x, y, size, size);
 
-    // If Path2D is not supported, draw a simple fallback (green rectangle with diagonal notch)
-    if (!drawNvidiaLogo._path) {
-        ctx.fillStyle = '#76b900';
-        const pad = size * 0.12;
-        ctx.fillRect(x + pad, dy + pad, size - pad * 2, dh - pad * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(x + size * 0.35, dy + dh * 0.65);
-        ctx.lineTo(x + size * 0.55, dy + dh * 0.45);
-        ctx.lineTo(x + size * 0.75, dy + dh * 0.65);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-        return;
-    }
-
     // Draw the scaled logo centered within the square button
     ctx.translate(dx, dy);
     ctx.scale(scale, scale);
