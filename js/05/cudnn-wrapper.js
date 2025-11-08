@@ -275,10 +275,19 @@ app.registerExtension({
             type: "boolean",
             defaultValue: true,
         });
-        
+
+        app.ui.settings.addSetting({
+            category: ['ovum', 'cudnn-wrapper', 'cudnn-wrapper-enabled'],
+            id: "ovum.cudnn-wrapper-enabled",
+            name: "Disable cuDNN for VAE related nodes",
+            type: "boolean",
+            defaultValue: true,
+        });
+
         let originalGraphToPrompt = app.graphToPrompt
         let graphToPrompt = async function() {
             let res = await originalGraphToPrompt.apply(this, arguments);
+            res.workflow.extra['ovum.cudnn-wrapper-enabled'] = app.ui.settings.getSettingValue("ovum.cudnn-wrapper-enabled", null)
 
             const cudnn_enabled = app.ui.settings.getSettingValue("ovum.cudnn-default-enabled", null)
             if (cudnn_enabled === true) {

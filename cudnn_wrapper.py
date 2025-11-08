@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Type, Any
 import types
+import inspect
 
 # noinspection PyPackageRequirements
 import torch
@@ -56,8 +57,46 @@ def _print_cudnn_change(target_value: bool, prev_enabled: bool):
         print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled still set to {target_value}")
 
 
+def _extract_extra_options_from_call(callable_fn: Callable, node, args, kwargs) -> dict:
+    """Mimic VideoCombine's way of pulling extra options from extra_pnginfo.
+    It tries to bind args/kwargs to the callable's signature and then read
+    the 'extra_pnginfo' parameter, if present, and extract workflow.extra.
+    """
+    try:
+        sig = inspect.signature(callable_fn)
+        try:
+            bound = sig.bind_partial(node, *args, **kwargs)
+        except TypeError:
+            bound = sig.bind_partial(*args, **kwargs)
+        extra_pnginfo = bound.arguments.get('extra_pnginfo', None)
+        if extra_pnginfo is not None:
+            return extra_pnginfo.get('workflow', {}).get('extra', {}) or {}
+    except Exception:
+        pass
+    # Fallback: check kwargs directly
+    try:
+        extra_pnginfo = kwargs.get('extra_pnginfo', None)
+        if extra_pnginfo is not None:
+            return extra_pnginfo.get('workflow', {}).get('extra', {}) or {}
+    except Exception:
+        pass
+    return {}
+
+
 def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
     def wrapped(node, *args, **kwargs):
+        # Check workflow extra options toggle first. If disabled, do not change cudnn at all.
+        extra_options = _extract_extra_options_from_call(callable_fn, node, args, kwargs)
+        try:
+            cur_enabled = torch.backends.cudnn.enabled
+        except Exception:
+            cur_enabled = False
+        if extra_options.get('ovum.cudnn-wrapper-enabled') == False:
+            print(
+                f"[OVUM_CUDDN_TOGGLE] Disabled by global setting: ovum.cudnn-wrapper-enabled=False; cudnn settings unchanged (enabled={cur_enabled})"
+            )
+            return callable_fn(node, *args, **kwargs)
+
         if not _is_amd_like():
             try:
                 prev_enabled = torch.backends.cudnn.enabled
@@ -138,6 +177,41 @@ def create_cudnn_wrapped_node(class_to_wrap: Type,
     setattr(new_class, f"{_FN_PREFIX}{function_name}", wrapped_function)
     setattr(new_class, 'FUNCTION', f"{_FN_PREFIX}{function_name}")
     setattr(new_class, 'CATEGORY', new_category or _CATEGORY_DEFAULT)
+
+    # Ensure INPUT_TYPES has a hidden.extra_pnginfo input so workflow extras are available
+    orig_input_types = getattr(new_class, 'INPUT_TYPES', None)
+
+    def _ensure_hidden_extra_pnginfo(dct: Any):
+        try:
+            if not isinstance(dct, dict):
+                return dct
+            hidden = dct.get('hidden', None)
+            if hidden is None:
+                dct['hidden'] = {"extra_pnginfo": "EXTRA_PNGINFO"}
+            elif isinstance(hidden, dict):
+                if 'extra_pnginfo' not in hidden:
+                    hidden['extra_pnginfo'] = "EXTRA_PNGINFO"
+            # If hidden is not a dict (e.g., a special helper), we leave it untouched
+            return dct
+        except Exception:
+            return dct
+
+    if callable(orig_input_types):
+        original_input_types_callable = orig_input_types
+        def _cudnn_wrapped_INPUT_TYPES(cls):
+            try:
+                base = original_input_types_callable()
+            except TypeError:
+                # Some classmethods may expect the class parameter
+                base = original_input_types_callable(cls)
+            return _ensure_hidden_extra_pnginfo(base)
+        setattr(new_class, 'INPUT_TYPES', classmethod(_cudnn_wrapped_INPUT_TYPES))
+    else:
+        # Provide a minimal INPUT_TYPES if none exists
+        def _cudnn_wrapped_INPUT_TYPES(cls):
+            return {"required": {}, "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}
+        setattr(new_class, 'INPUT_TYPES', classmethod(_cudnn_wrapped_INPUT_TYPES))
+
     setattr(new_class, _FLAG, True)
 
     return new_class
