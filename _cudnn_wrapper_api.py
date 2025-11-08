@@ -504,3 +504,97 @@ async def debug_config(request: web.Request):
         return web.json_response({"error": True, "message": "classes_to_cudnn_wrap.txt not found"})
     except Exception as e:
         return web.json_response({"error": True, "message": str(e)})
+
+
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn')
+async def cudnn_status(d):
+    try:
+        return web.json_response({
+            "torch.backends.cudnn.enabled": torch.backends.cudnn.enabled,
+            "torch.backends.cudnn.benchmark": torch.backends.cudnn.benchmark
+        })
+    except Exception as e:
+        return web.json_response({"error": True, "message": str(e), "exceptionClass": e.__class__.__name__})
+
+
+def _toggle_cudnn_setting(attribute: str, value: bool) -> dict:
+    """
+    Helper function to toggle cudnn settings.
+
+    Args:
+        attribute: Either "enabled" or "benchmark"
+        value: Boolean value to set
+
+    Returns:
+        Dictionary with previous and current values
+    """
+    prev_enabled = None
+    prev_benchmark = None
+
+    if attribute == "enabled":
+        prev_enabled = torch.backends.cudnn.enabled
+        torch.backends.cudnn.enabled = value
+    elif attribute == "benchmark":
+        prev_benchmark = torch.backends.cudnn.benchmark
+        torch.backends.cudnn.benchmark = value
+    else:
+        raise ValueError(f"Unknown attribute: {attribute}")
+
+    if attribute == "enabled":
+        if value != prev_enabled:
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled set to {value} (was {prev_enabled})")
+        else:
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.enabled still set to {value}")
+        return {
+            "previous.torch.backends.cudnn.enabled": prev_enabled,
+            "torch.backends.cudnn.enabled": torch.backends.cudnn.enabled,
+        }
+
+    elif attribute == "benchmark":
+        if value != prev_benchmark:
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.benchmark set to {value} (was {prev_benchmark})")
+        else:
+            print(f"[OVUM_CUDDN_TOGGLE] torch.backends.cudnn.benchmark still set to {value}")
+        return {
+            "previous.torch.backends.cudnn.benchmark": prev_benchmark,
+            "torch.backends.cudnn.benchmark": torch.backends.cudnn.benchmark
+        }
+
+    return {
+        "previous.torch.backends.cudnn.enabled": prev_enabled,
+        "previous.torch.backends.cudnn.benchmark": prev_benchmark,
+        "torch.backends.cudnn.enabled": torch.backends.cudnn.enabled,
+        "torch.backends.cudnn.benchmark": torch.backends.cudnn.benchmark
+    }
+
+
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn/enable')
+async def cudnn_enable(d):
+    try:
+        return web.json_response(_toggle_cudnn_setting("enabled", True))
+    except Exception as e:
+        return web.json_response({"error": True, "message": str(e), "exceptionClass": e.__class__.__name__})
+
+
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn/disable')
+async def cudnn_disable(d):
+    try:
+        return web.json_response(_toggle_cudnn_setting("enabled", False))
+    except Exception as e:
+        return web.json_response({"error": True, "message": str(e), "exceptionClass": e.__class__.__name__})
+
+
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn-benchmark/enable')
+async def cudnn_benchmark_enable(d):
+    try:
+        return web.json_response(_toggle_cudnn_setting("benchmark", True))
+    except Exception as e:
+        return web.json_response({"error": True, "message": str(e), "exceptionClass": e.__class__.__name__})
+
+
+@PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn-benchmark/disable')
+async def cudnn_benchmark_disable(d):
+    try:
+        return web.json_response(_toggle_cudnn_setting("benchmark", False))
+    except Exception as e:
+        return web.json_response({"error": True, "message": str(e), "exceptionClass": e.__class__.__name__})

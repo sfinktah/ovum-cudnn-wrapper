@@ -267,6 +267,31 @@ app.registerExtension({
                 CUDNN_DISABLE_WARNING_MSG = '';
             }
         }
+        
+        app.ui.settings.addSetting({
+            category: ['ovum', 'cudnn-wrapper', 'cudnn-enabled'],
+            id: "ovum.cudnn-default-enabled",
+            name: "torch.backends.cudnn.enabled",
+            type: "boolean",
+            defaultValue: true,
+        });
+        
+        let originalGraphToPrompt = app.graphToPrompt
+        let graphToPrompt = async function() {
+            let res = await originalGraphToPrompt.apply(this, arguments);
+
+            const cudnn_enabled = app.ui.settings.getSettingValue("ovum.cudnn-default-enabled", null)
+            if (cudnn_enabled === true) {
+                const res = await api.fetchApi('/ovum-cudnn-wrapper/cudnn/enable', { method: 'GET' });
+                const json = await res.json();
+            }
+            else if (cudnn_enabled === false) {
+                const res = await api.fetchApi('/ovum-cudnn-wrapper/cudnn/disable', { method: 'GET' });
+                const json = await res.json();
+            }
+            return res
+        }
+        app.graphToPrompt = graphToPrompt
 
         // Register listeners
         api.addEventListener('reconnected', onSocketOpen);
