@@ -150,7 +150,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
             cur_enabled = False
         if extra_options.get('ovum.cudnn-wrapper-enabled') == False:
             print(
-                f"[OVUM_CUDDN_TOGGLE] Disabled by global setting: ovum.cudnn-wrapper-enabled=False; cudnn settings unchanged (enabled={cur_enabled})"
+                f"[OVUM_CUDDN_TOGGLE] Disabled by global setting: ovum.cudnn-wrapper-enabled=False; torch.backends.cudnn.enabled still set to {cur_enabled}"
             )
             return _call_with_filtered_extra_pnginfo(callable_fn, node, args, kwargs)
 
@@ -160,8 +160,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
             except Exception:
                 prev_enabled = False
             print(
-                f"[OVUM_CUDDN_TOGGLE] AMD GPU not detected; cudnn settings unchanged "
-                f"(enabled={prev_enabled})"
+                f"[OVUM_CUDDN_TOGGLE] AMD GPU not detected; torch.backends.cudnn.enabled still set to {prev_enabled}"
             )
             return _call_with_filtered_extra_pnginfo(callable_fn, node, args, kwargs)
 

@@ -1,3 +1,5 @@
+/** @typedef {import("@comfyorg/comfyui-frontend-types").LiteGraph} LiteGraph */
+
 import {app} from "../../../scripts/app.js";
 import {api} from "../../../scripts/api.js";
 import {chainCallback} from "../01/utility.js";
@@ -249,6 +251,17 @@ app.registerExtension({
                 else if (g?._nodes_by_id) node = g._nodes_by_id[id];
                 else if (Array.isArray(g?._nodes)) node = g._nodes.find(n => n?.id === id);
             } catch {}
+
+            // If the global cudnn-wrapper feature is disabled, do not set warnings at all
+            try {
+                const wrapperEnabled = app.ui?.settings?.getSettingValue?.("ovum.cudnn-wrapper-enabled", null);
+                if (wrapperEnabled === false) {
+                    CUDNN_DISABLE_WARNING = false;
+                    CUDNN_DISABLE_WARNING_MSG = '';
+                    return;
+                }
+            } catch {}
+
             if (node && node._is_cudnn_wrapped) {
                 setTimeout(async () => {
                     try { await fetch_status(); } catch {}
@@ -379,14 +392,72 @@ app.registerExtension({
             }
         });
 
+
+        /**
+         * Renders the node's title bar background
+         */
+        function drawTitleBarBackground(
+            ctx, {
+                scale,
+                title_height = LiteGraph.NODE_TITLE_HEIGHT,
+                low_quality = false
+            }
+        ) {
+            const fgcolor = this.renderingColor
+            const shape = this.renderingShape
+            const size = this.renderingSize
+
+            if (this.onDrawTitleBar) {
+                this.onDrawTitleBar(ctx, title_height, size, scale, fgcolor)
+                return
+            }
+
+            if (this.title_mode === TitleMode.TRANSPARENT_TITLE) {
+                return
+            }
+
+            if (this.collapsed) {
+                ctx.shadowColor = LiteGraph.DEFAULT_SHADOW_COLOR
+            }
+
+            ctx.fillStyle = this.constructor.title_color || fgcolor
+            ctx.beginPath()
+
+            if (shape == RenderShape.BOX || low_quality) {
+                ctx.rect(0, -title_height, size[0], title_height)
+            } else if (shape == RenderShape.ROUND || shape == RenderShape.CARD) {
+                ctx.roundRect(
+                    0,
+                    -title_height,
+                    size[0],
+                    title_height,
+                    this.collapsed
+                        ? [LiteGraph.ROUND_RADIUS]
+                        : [LiteGraph.ROUND_RADIUS, LiteGraph.ROUND_RADIUS, 0, 0]
+                )
+            }
+            ctx.fill()
+            ctx.shadowColor = 'transparent'
+        }
+
         chainCallback(node, 'onDrawForeground', function (ctx) {
             if (!this._is_cudnn_wrapped) return;
+            if (this.flags && this.flags.collapsed) return;
+
             const titleHeight = LiteGraph.NODE_TITLE_HEIGHT;
             const cWidth = this._collapsed_width || LiteGraph.NODE_COLLAPSED_WIDTH;
             const buttonWidth = cWidth - titleHeight - 6;
             let cx = (this.flags.collapsed ? cWidth : this.size[0]) - buttonWidth - 6;
 
-            // Removed background rectangle to avoid dark box under vendor logo on titlebar
+            ctx.save();
+            // XXX Removed background rectangle to avoid dark box under vendor logo on titlebar
+            // No, we should be drawing the background rectangle, actually it should be the size of the entire title... something has gone wrong!
+            // Draw the button background rectangle in the title bar
+            ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR;
+            ctx.beginPath();
+            ctx.rect(cx, 2 - titleHeight, buttonWidth, titleHeight - 4);
+            ctx.fill();
+            ctx.restore();
 
             // Center of button area
             cx += buttonWidth / 2;
