@@ -257,6 +257,11 @@ async def ovum_cudnn_wrap_init(request: web.Request):
         print("CUDNNWrapper: problem reading classes_to_cudnn_wrap.txt")
     return web.json_response({"response": True})
 
+def is_hip():
+    if torch.version.hip:
+        return True
+    return False
+
 @PromptServer.instance.routes.get('/ovum-cudnn-wrapper/cudnn-status')
 async def status(d):
     try:
@@ -277,7 +282,7 @@ async def status(d):
                 pass
             import os
             vlow = vstr.lower()
-            if ("amd " in vlow) or ("zluda" in vlow) or os.environ.get("ZLUDA") or os.environ.get("ZLUDA_ROOT"):
+            if is_hip() or ("amd " in vlow) or ("zluda" in vlow) or os.environ.get("ZLUDA") or os.environ.get("ZLUDA_ROOT"):
                 amd_like = True
         except Exception:
             amd_like = False
