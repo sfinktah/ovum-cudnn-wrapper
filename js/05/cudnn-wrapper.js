@@ -386,11 +386,7 @@ app.registerExtension({
             const buttonWidth = cWidth - titleHeight - 6;
             let cx = (this.flags.collapsed ? cWidth : this.size[0]) - buttonWidth - 6;
 
-            // Draw bg rectangle similar to halt_toggle
-            ctx.fillStyle = this.color || LiteGraph.NODE_DEFAULT_COLOR;
-            ctx.beginPath();
-            ctx.rect(cx, 2 - titleHeight, buttonWidth, titleHeight - 4);
-            ctx.fill();
+            // Removed background rectangle to avoid dark box under vendor logo on titlebar
 
             // Center of button area
             cx += buttonWidth / 2;
