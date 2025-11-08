@@ -83,6 +83,63 @@ def _extract_extra_options_from_call(callable_fn: Callable, node, args, kwargs) 
     return {}
 
 
+def _call_with_filtered_extra_pnginfo(callable_fn: Callable, node, args, kwargs):
+    """Use the preferred method to decide removal, and use signature-based check only for logging.
+
+    Preferred method: if we injected hidden.extra_pnginfo for this wrapper, we know the original
+    function did not declare it, so we should strip 'extra_pnginfo' before calling.
+
+    Signature-based method is retained ONLY to log disagreements with the preferred method.
+    Decision making must follow ONLY the preferred method. We still keep a safety retry on
+    TypeError: if we kept extra_pnginfo and it errors, retry once without it.
+    """
+    # Preferred decision
+    injected = getattr(callable_fn, '_ovum_injected_hidden_extra_pnginfo', None)
+    preferred_remove = (injected is True) and ('extra_pnginfo' in kwargs)
+
+    # Signature-based check (for logging only)
+    sig_remove = None
+    try:
+        sig = inspect.signature(callable_fn)
+        params = sig.parameters
+        accepts_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+        expects_extra = 'extra_pnginfo' in params
+        if 'extra_pnginfo' in kwargs:
+            sig_remove = (not accepts_var_kw and not expects_extra)
+    except Exception:
+        # If inspection fails, we don't log a disagreement
+        pass
+
+    # Log disagreement if any
+    try:
+        if sig_remove is not None and sig_remove != preferred_remove:
+            print(
+                f"[OVUM_CUDNN_WRAPPER] extra_pnginfo removal disagreement: preferred={preferred_remove} (injected={injected}), "
+                f"signature_suggests_remove={sig_remove}; using preferred method"
+            )
+    except Exception:
+        pass
+
+    # Apply only the preferred decision
+    if preferred_remove:
+        if 'extra_pnginfo' in kwargs:
+            filtered_kwargs = dict(kwargs)
+            filtered_kwargs.pop('extra_pnginfo', None)
+        else:
+            filtered_kwargs = kwargs
+        return callable_fn(node, *args, **filtered_kwargs)
+    else:
+        try:
+            return callable_fn(node, *args, **kwargs)
+        except TypeError:
+            # Safety retry: if unexpected kwarg slipped through, pop and retry once
+            if 'extra_pnginfo' in kwargs:
+                filtered_kwargs = dict(kwargs)
+                filtered_kwargs.pop('extra_pnginfo', None)
+                return callable_fn(node, *args, **filtered_kwargs)
+            raise
+
+
 def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
     def wrapped(node, *args, **kwargs):
         # Check workflow extra options toggle first. If disabled, do not change cudnn at all.
@@ -95,7 +152,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
             print(
                 f"[OVUM_CUDDN_TOGGLE] Disabled by global setting: ovum.cudnn-wrapper-enabled=False; cudnn settings unchanged (enabled={cur_enabled})"
             )
-            return callable_fn(node, *args, **kwargs)
+            return _call_with_filtered_extra_pnginfo(callable_fn, node, args, kwargs)
 
         if not _is_amd_like():
             try:
@@ -106,7 +163,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
                 f"[OVUM_CUDDN_TOGGLE] AMD GPU not detected; cudnn settings unchanged "
                 f"(enabled={prev_enabled})"
             )
-            return callable_fn(node, *args, **kwargs)
+            return _call_with_filtered_extra_pnginfo(callable_fn, node, args, kwargs)
 
         # Save current state
         prev_enabled = torch.backends.cudnn.enabled
@@ -116,7 +173,7 @@ def _wrap_function_with_cudnn_disable(callable_fn: Callable) -> Callable:
         _print_cudnn_change(False, prev_enabled)
 
         try:
-            return callable_fn(node, *args, **kwargs)
+            return _call_with_filtered_extra_pnginfo(callable_fn, node, args, kwargs)
         finally:
             # Restore
             cur_enabled = torch.backends.cudnn.enabled
@@ -181,20 +238,44 @@ def create_cudnn_wrapped_node(class_to_wrap: Type,
     # Ensure INPUT_TYPES has a hidden.extra_pnginfo input so workflow extras are available
     orig_input_types = getattr(new_class, 'INPUT_TYPES', None)
 
+    # Determine whether we will inject the hidden extra_pnginfo (preferred method gate)
+    injected_hidden = False
+
     def _ensure_hidden_extra_pnginfo(dct: Any):
         try:
             if not isinstance(dct, dict):
                 return dct
             hidden = dct.get('hidden', None)
             if hidden is None:
+                # We will inject the hidden input
+                nonlocal injected_hidden
+                injected_hidden = True
                 dct['hidden'] = {"extra_pnginfo": "EXTRA_PNGINFO"}
             elif isinstance(hidden, dict):
                 if 'extra_pnginfo' not in hidden:
+                    injected_hidden = True
                     hidden['extra_pnginfo'] = "EXTRA_PNGINFO"
             # If hidden is not a dict (e.g., a special helper), we leave it untouched
             return dct
         except Exception:
             return dct
+
+    # Probe the original INPUT_TYPES to see if it already had extra_pnginfo
+    already_had_extra = False
+    try:
+        if callable(orig_input_types):
+            try:
+                probe = orig_input_types()
+            except TypeError:
+                probe = orig_input_types(new_class)
+        else:
+            probe = orig_input_types
+        if isinstance(probe, dict):
+            hidden = probe.get('hidden', None)
+            if isinstance(hidden, dict) and 'extra_pnginfo' in hidden:
+                already_had_extra = True
+    except Exception:
+        pass
 
     if callable(orig_input_types):
         original_input_types_callable = orig_input_types
@@ -211,6 +292,13 @@ def create_cudnn_wrapped_node(class_to_wrap: Type,
         def _cudnn_wrapped_INPUT_TYPES(cls):
             return {"required": {}, "hidden": {"extra_pnginfo": "EXTRA_PNGINFO"}}
         setattr(new_class, 'INPUT_TYPES', classmethod(_cudnn_wrapped_INPUT_TYPES))
+        injected_hidden = True
+
+    # Record on the wrapped callable whether we injected the hidden input
+    try:
+        setattr(wrapped_function, '_ovum_injected_hidden_extra_pnginfo', (injected_hidden and not already_had_extra))
+    except Exception:
+        pass
 
     setattr(new_class, _FLAG, True)
 
