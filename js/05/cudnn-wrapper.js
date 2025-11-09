@@ -387,7 +387,6 @@ app.registerExtension({
             }
             if (hovered !== this._ov_cudnn_hover) {
                 this._ov_cudnn_hover = hovered;
-                console.log(`axvch onMouseMove hovered ${hovered}`);
                 app.graph?.canvas?.setDirty?.(true, true);
             }
         });
