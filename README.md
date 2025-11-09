@@ -1,8 +1,15 @@
+> [!NOTE]
+> New: You can now set the default state of `torch.backends.cudnn.enabled` directly in ComfyUI's Settings.  This will be applied at the start of every workflow, to ensure that every job starts with your preferred settings. 
+>
+> ![ComfyUI Settings showing cuDNN toggle](resources/comfy-settings.png)
+
 # cuDNN Wrapper for AMD VAE Workloads
 
 Dynamically wraps ComfyUI node types so that, when running on AMD-like GPUs, cuDNN is temporarily disabled during
 VAE-related encode/decode operations. On NVIDIA GPUs the wrapper goes inert and will not modify cuDNN, so it’s safe to
 enable everywhere.
+
+![cuDNN wrapped node](resources/wrapped-node.png)
 
 This custom node set focuses on AMD-friendly behavior. By default it lets you add a cuDNN-disabling wrapper to existing
 node types (primarily useful for VAE encoding/decoding on AMD). It also includes a manual toggle node you can insert in
