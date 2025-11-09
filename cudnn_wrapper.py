@@ -113,10 +113,12 @@ def _call_with_filtered_extra_pnginfo(callable_fn: Callable, node, args, kwargs)
     # Log disagreement if any
     try:
         if sig_remove is not None and sig_remove != preferred_remove:
-            print(
-                f"[OVUM_CUDNN_WRAPPER] extra_pnginfo removal disagreement: preferred={preferred_remove} (injected={injected}), "
-                f"signature_suggests_remove={sig_remove}; using preferred method"
-            )
+            pass
+            # No sure why this still triggers.
+            # print(
+            #     f"[OVUM_CUDNN_TOGGLE] extra_pnginfo removal disagreement: preferred={preferred_remove} (injected={injected}), "
+            #     f"signature_suggests_remove={sig_remove}; using preferred method"
+            # )
     except Exception:
         pass
 

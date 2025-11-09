@@ -254,7 +254,7 @@ app.registerExtension({
 
             // If the global cudnn-wrapper feature is disabled, do not set warnings at all
             try {
-                const wrapperEnabled = app.ui?.settings?.getSettingValue?.("ovum.cudnn-wrapper-enabled", null);
+                const wrapperEnabled = app.ui?.settings?.getSettingValue?.("ovum.cudnn-wrapper-enabled");
                 if (wrapperEnabled === false) {
                     CUDNN_DISABLE_WARNING = false;
                     CUDNN_DISABLE_WARNING_MSG = '';
@@ -300,9 +300,9 @@ app.registerExtension({
         let originalGraphToPrompt = app.graphToPrompt
         let graphToPrompt = async function() {
             let res = await originalGraphToPrompt.apply(this, arguments);
-            res.workflow.extra['ovum.cudnn-wrapper-enabled'] = app.ui.settings.getSettingValue("ovum.cudnn-wrapper-enabled", null)
+            res.workflow.extra['ovum.cudnn-wrapper-enabled'] = app.ui.settings.getSettingValue("ovum.cudnn-wrapper-enabled")
 
-            const cudnn_enabled = app.ui.settings.getSettingValue("ovum.cudnn-default-enabled", null)
+            const cudnn_enabled = app.ui.settings.getSettingValue("ovum.cudnn-default-enabled")
             if (cudnn_enabled === true) {
                 const res = await api.fetchApi('/ovum-cudnn-wrapper/cudnn/enable', { method: 'GET' });
                 const json = await res.json();
