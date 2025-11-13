@@ -1,7 +1,7 @@
 [project]
 name = "ovum-cudnn-wrapper"
 description = "Toggle torch.backends.cudnn.enabled, or dynamically wrap VAE decoding nodes with cuDNN disabling flags when on AMD (more fast is more good)."
-version = "1.0.144"
+version = "1.0.146"
 dependencies = [
     "aiohttp",
     "requests",

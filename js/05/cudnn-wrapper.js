@@ -467,25 +467,17 @@ app.registerExtension({
 
             // Determine color
             let color = null;
-            if (!AMD_LIKE) {
-                // This should never happen, so not going to bother with a tooltip for it
-                console.log('[ovum-cudnn-wrapper] this point should never be reached')
-                if (this._ov_cudnn_running) color = '#a88444';
-                else color = this.mouseOver ? LiteGraph.NODE_SELECTED_TITLE_COLOR : (this.boxcolor || LiteGraph.NODE_DEFAULT_BOXCOLOR);
-            } else {
+            if (AMD_LIKE) {
                 // AMD detected
                 if (CUDNN_DISABLE_WARNING) color = '#A83B3B'; // warning red if failed to disable
                 else if (CUDNN_ENABLED) color = '#00A86B'; // AMD green
                 else color = '#3378FF'; // blue when disabled
+                drawAmdLogo(ctx, x0, y0, size, color);
             }
 
             if (!AMD_LIKE) {
                 // NVIDIA GPU detected: draw NVIDIA logo with its native colors
                 drawNvidiaLogo(ctx, x0, y0, size);
-            } else {
-                // AMD detected: draw AMD logo with dynamic color
-                // drawNvidiaLogo(ctx, x0, y0, size);
-                drawAmdLogo(ctx, x0, y0, size, color);
             }
             this._ov_cudnn_logo_rect = { x: x0, y: y0, w: size, h: size };
 
