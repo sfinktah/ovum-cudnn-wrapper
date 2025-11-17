@@ -1,5 +1,5 @@
 @echo off
-REM Post-commit hook to auto-bump versions in pyproject.toml for ovum projects.
+REM Generic post-commit hook to auto-bump a version in a single target file.
 REM Requires Python available on PATH.
 
 REM Prevent infinite recursion when we amend the commit
@@ -9,36 +9,26 @@ if "%GIT_BUMPING%"=="1" (
 
 setlocal ENABLEDELAYEDEXPANSION
 
-REM Determine repository root
-for /f "tokens=*" %%i in ('git rev-parse --show-toplevel') do set REPO_ROOT=%%i
+REM Resolve repository root (folder containing this .githooks directory)
+set "SCRIPT_DIR=%~dp0"
+for %%# in ("%SCRIPT_DIR%..") do set "REPO_ROOT=%%~f#"
 
-REM List of per-project bump scripts (run individually)
-set S1=%REPO_ROOT%\tools\auto_bump_version.py
-set S2=%REPO_ROOT%\tools\auto_bump_version_spotlight.py
-set S3=%REPO_ROOT%\tools\auto_bump_version_cudnn_wrapper.py
+REM Allow overrides via environment; provide sensible defaults
+if not defined BUMP_SCRIPT set "BUMP_SCRIPT=%REPO_ROOT%\tools\auto_bump_version.py"
+if not defined BUMP_TARGET_FILE set "BUMP_TARGET_FILE=%REPO_ROOT%\pyproject.toml"
 
-set CHANGED=
-
-for %%S in ("%S1%" "%S2%" "%S3%") do (
-  if exist %%~S (
-    for /f "usebackq tokens=*" %%l in (`python %%~S`) do (
-      set LINE=%%l
-      if "!LINE!"=="CHANGED=1" set CHANGED=1
-      for /f "tokens=1,2 delims==" %%a in ("!LINE!") do (
-        if "%%a"=="FILE" set "FILEPATH=%%b" & git add "!FILEPATH!"
-      )
-    )
+if exist "%BUMP_SCRIPT%" (
+  pushd "%REPO_ROOT%" >nul 2>&1
+  REM Run the bump script; it returns 1 if a change was made
+  python "%BUMP_SCRIPT%" --file "%BUMP_TARGET_FILE%" >nul 2>&1
+  if errorlevel 1 (
+    git add "%BUMP_TARGET_FILE%"
+    REM Amend the just-created commit to include the bumped version
+    set GIT_BUMPING=1
+    git commit --amend --no-edit >nul 2>&1
   )
+  popd >nul 2>&1
 )
 
-if not "%CHANGED%"=="1" (
-  endlocal
-  goto :eof
-)
-
-REM Amend the just-created commit to include the bumped versions
-set GIT_BUMPING=1
-git commit --amend --no-edit >nul 2>&1
 endlocal
-
 exit /b 0

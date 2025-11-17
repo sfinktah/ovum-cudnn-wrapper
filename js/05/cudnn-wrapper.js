@@ -441,6 +441,7 @@ app.registerExtension({
 
         chainCallback(node, 'onDrawForeground', function (ctx) {
             if (!this._is_cudnn_wrapped) return;
+            if (!AMD_LIKE) return;
             if (this.flags && this.flags.collapsed) return;
 
             const titleHeight = LiteGraph.NODE_TITLE_HEIGHT;
@@ -476,8 +477,11 @@ app.registerExtension({
             }
 
             if (!AMD_LIKE) {
+                console.log('[ovum-cudnn-wrapper] this point should never be reached')
+                // if (this._ov_cudnn_running) color = '#a88444';
+                // else color = this.mouseOver ? LiteGraph.NODE_SELECTED_TITLE_COLOR : (this.boxcolor || LiteGraph.NODE_DEFAULT_BOXCOLOR);
                 // NVIDIA GPU detected: draw NVIDIA logo with its native colors
-                drawNvidiaLogo(ctx, x0, y0, size);
+                // drawNvidiaLogo(ctx, x0, y0, size);
             }
             this._ov_cudnn_logo_rect = { x: x0, y: y0, w: size, h: size };
 
